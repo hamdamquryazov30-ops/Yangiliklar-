@@ -4,55 +4,82 @@ import feedparser
 from deep_translator import GoogleTranslator
 
 # ================= SOZLAMALAR =================
-BOT_TOKEN = "8911284352:AAG3hsL_5gnpnh6Uah_0JTc3JwbLDcoQxfc"  # BotFather'dan olgan kodingiz
-CHANNEL_ID = "@yangiliklar_uzbektilida"     # Kanalingiz usernamesi (masalan: @my_channel)
-RSS_URL = "https://feeds.bbci.co.uk/news/world/rss.xml"
-CHECK_INTERVAL = 600
+BOT_TOKEN = "8911284352:AAG3hsL_5gnpnh6Ua..."  # O'zingizning to'liq tokeningizni tekshirib oling
+CHANNEL_ID = "@yangiliklar_uzbektilida"
+
+# Bir nechta ishonchli yangiliklar manbalari:
+RSS_URLS = [
+    "https://feeds.bbci.co.uk/news/world/rss.xml",      # BBC World
+    "https://www.aljazeera.com/xml/rss/all.xml",       # Al Jazeera
+    "http://rss.cnn.com/rss/edition.rss"               # CNN
+]
+
+CHECK_INTERVAL = 600  # Har 10 daqiqada tekshiradi
 # ===============================================
 
 translator = GoogleTranslator(source='en', target='uz')
-last_posted_link = ""
+posted_links = set()
 
 def translate_text(text):
+    """Matnni o'zbek tiliga tarjima qilish"""
     try:
         if not text:
             return ""
+        # Juda uzun matnlarni bo'lib tarjima qilish uchun
+        if len(text) > 4500:
+            text = text[:4500]
         return translator.translate(text)
     except Exception as e:
-        print(f"Tarjima xatosi: {e}")
+        print(f"Tarjimada xatolik: {e}")
         return text
 
-def send_telegram_message(caption):
+def send_telegram_message(text):
+    """Telegram kanalga post joylash"""
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": CHANNEL_ID,
-        "text": caption,
-        "parse_mode": "Markdown",
-        "disable_web_page_preview": False
+        "text": text,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": True
     }
     try:
-        requests.post(url, data=payload)
+        res = requests.post(url, json=payload)
+        return res.status_code == 200
     except Exception as e:
         print(f"Telegramga yuborishda xatolik: {e}")
+        return False
 
 def check_and_post():
-    global last_posted_link
-    feed = feedparser.parse(RSS_URL)
-    
-    if feed.entries:
-        latest_news = feed.entries[0]
-        if latest_news.link != last_posted_link:
-            eng_title = latest_news.title
-            uzb_title = translate_text(eng_title)
+    """Manbalarni tekshirish va batafsil post tayyorlash"""
+    print("Yangi xabarlar tekshirilmoqda...")
+    for rss_url in RSS_URLS:
+        try:
+            feed = feedparser.parse(rss_url)
+            if not feed.entries:
+                continue
+                
+            latest = feed.entries[0]
+            link = latest.link
             
-            caption = f"🔴 **{uzb_title}**\n\n"
-            caption += f"🌐 Batafsil: [Manba maqolasi]({latest_news.link})\n"
-            caption += "───\n"
-            caption += "🤖 *Avto-tarjima bot*"
-            
-            send_telegram_message(caption)
-            last_posted_link = latest_news.link
-            print(f"Yangi post joylandi: {uzb_title}")
+            if link not in posted_links:
+                title_en = latest.title
+                summary_en = getattr(latest, 'summary', title_en)
+                
+                # O'zbek tiliga tarjima qilish
+                title_uz = translate_text(title_en)
+                summary_uz = translate_text(summary_en)
+                
+                # Chiroyli va batafsil post formati
+                post_text = f"📌 <b>{title_uz}</b>\n\n"
+                post_text += f"📝 {summary_uz}\n\n"
+                post_text += "🌐 <b>Dunyoda nima gap?</b> — <i>Eng so'nggi va muhim xabarlar kanalamizda!</i>"
+                
+                if send_telegram_message(post_text):
+                    posted_links.add(link)
+                    print(f"Yangi post joylandi: {title_uz}")
+                    time.sleep(5)
+        except Exception as e:
+            print(f"RSS o'qishda xatolik ({rss_url}): {e}")
 
 if __name__ == "__main__":
     print("Bot ishga tushdi...")
