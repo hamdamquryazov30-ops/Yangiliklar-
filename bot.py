@@ -86,3 +86,29 @@ if __name__ == "__main__":
     while True:
         check_and_post()
         time.sleep(CHECK_INTERVAL)
+
+import os
+from http.server import HTTPServer, BaseHTTPRequestHandler
+import threading
+
+# Render "Timed Out" xatosini bermasligi uchun bepul port tinglovchi
+class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Bot 24/7 ishlamoqda!")
+
+def run_dummy_server():
+    port = int(os.environ.get("PORT", 8080))
+    server = HTTPServer(('0.0.0.0', port), SimpleHTTPRequestHandler)
+    server.serve_forever()
+
+if __name__ == "__main__":
+    # Fonda mini serverni ishga tushirish
+    threading.Thread(target=run_dummy_server, daemon=True).start()
+    
+    print("Bot ishga tushdi...")
+    while True:
+        check_and_post()
+        time.sleep(CHECK_INTERVAL)
+
