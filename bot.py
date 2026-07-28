@@ -64,7 +64,7 @@ def scrape_full_article(url):
             txt = p.get_text().strip()
             if len(txt) > 40 and not any(word in txt.lower() for word in ['copyright', 'privacy policy', 'subscribe', 'terms']):
                 full_text.append(txt)
-            if len(full_text) >= 6: # Post optimal hajmda bo'lishi uchun 6 ta asosiy paragraf
+            if len(full_text) >= 5: # Post hajmi chiroyli bo'lishi uchun 5 ta asosiy paragraf
                 break
                 
         return "\n\n".join(full_text)
@@ -72,25 +72,45 @@ def scrape_full_article(url):
         print(f"Scraping xatosi ({url}): {e}")
         return ""
 
-def send_telegram_message(title, full_text):
+def format_and_send_telegram_message(title, full_text):
     uz_title = translate_text(title)
     uz_text = translate_text(full_text)
     
-    message = f"📰 **{uz_title}**\n\n{uz_text}"
+    # 🎨 POST DIZAYNI VA TARTIBI (Emojilar hamda kanal linki bilan)
+    message = (
+        f"🚨 **DUNYO YANGILIKLARI**\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"📌 **{uz_title}**\n\n"
+        f"📝 {uz_text}\n\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"📲 **Eng so'nggi va muhim xabarlar:**\n"
+        f"👉 [Yangiliklar Uzbekistan](https://t.me/yangiliklar_uzbektilida)"
+    )
+    
+    # Telegram belgi chegarasini tekshirish (4096 belgi)
     if len(message) > 4000:
-        message = message[:3990] + "...\n\n*(Batafsil matn qisqartirildi)*"
+        message = (
+            f"🚨 **DUNYO YANGILIKLARI**\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"📌 **{uz_title}**\n\n"
+            f"📝 {uz_text[:3000]}...\n\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"📲 **Eng so'nggi va muhim xabarlar:**\n"
+            f"👉 [Yangiliklar Uzbekistan](https://t.me/yangiliklar_uzbektilida)"
+        )
 
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": CHANNEL_ID,
         "text": message,
-        "parse_mode": "Markdown"
+        "parse_mode": "Markdown",
+        "disable_web_page_preview": True # Sayt ko'rinishini yopib, postni ixcham qiladi
     }
     
     try:
         res = requests.post(url, json=payload)
         if res.status_code == 200:
-            print(f"To'liq post kanalga joylandi: {title}")
+            print(f"Chiroyli post kanalga joylandi: {title}")
         else:
             print(f"Telegramga yuborishda xatolik: {res.text}")
     except Exception as e:
@@ -117,7 +137,7 @@ def check_and_post():
                     if not article_text:
                         article_text = entry.get("summary", "")
                         
-                    send_telegram_message(title, article_text)
+                    format_and_send_telegram_message(title, article_text)
                     
                     seen_posts.add(post_id)
                     save_seen_post(post_id)
