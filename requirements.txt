@@ -1,5 +1,7 @@
+
 beautifulsoup4
 feedparser
 deep-translator
 requests
 flask
+python-telegram-bot
