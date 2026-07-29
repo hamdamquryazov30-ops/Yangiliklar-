@@ -81,18 +81,19 @@ def fetch_one_new_article():
     return None, None
 
 # ---------------------------------------------------------
-# 3. TELEGRAM BOT KOMANDALARI
+# 3. BOT KOMANDALARI
 # ---------------------------------------------------------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    reply_keyboard = [['🚀 Yangi Post Joylash']]
-    markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
+    # Menyuda katta va aniq tugma chiqarish
+    keyboard = [['🚀 Post joylash']]
+    markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=False)
     await update.message.reply_text(
-        "Assalomu alaykum! Kanalga chiroyli yangilik joylash uchun pastdagi **'🚀 Yangi Post Joylash'** tugmasini bosing.",
+        "Assalomu alaykum!\nKanalga chiroyli post joylash uchun pastdagi **'🚀 Post joylash'** tugmasini bosing yoki botiingizga shunchaki `/post` deb yozing.",
         reply_markup=markup
     )
 
-async def handle_post_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("⏳ Yangilik tayyorlanmoqda va shakllantirilmoqda...")
+async def post_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("⏳ Yangilik tayyorlanmoqda...")
     
     title, full_text = fetch_one_new_article()
     
@@ -103,7 +104,7 @@ async def handle_post_request(update: Update, context: ContextTypes.DEFAULT_TYPE
     uz_title = translate_text(title)
     uz_text = translate_text(full_text)
 
-    # Postning Premium va Chiroyli Dizayni
+    # Premium Chiroyli Dizayn
     message = (
         f"🌐 **DUNYO HABARLARI** | **RASMIY MANBA**\n"
         f"━━━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -130,7 +131,11 @@ async def handle_post_request(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 if __name__ == "__main__":
     app = ApplicationBuilder().token(BOT_TOKEN).build()
+    
+    # Buyruqlar va matnli xabarlarni ushlash
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.Regex('^🚀 Yangi Post Joylash$'), handle_post_request))
-    print("Bot chiroyli postlar rejimida ishlamoqda...")
+    app.add_handler(CommandHandler("post", post_command))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, post_command))
+    
+    print("Bot ishlamoqda...")
     app.run_polling()
